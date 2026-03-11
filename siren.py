@@ -78,6 +78,7 @@ MODULES = [
     ("5", "Attack Suite",         "Auth attack + fuzzer + exploit chains",               "ATTACK"),
     ("6", "Intel + Defense",      "Cognitive reasoning + narrative + defense rules",     "INTEL"),
     ("7", "Evasion Test",         "WAF bypass + IDS evasion + payload obfuscation",      "EVASION"),
+    ("8", "Info Theory Scan",    "Shannon entropy + mutual information + KL divergence", "SHANNON"),
     ("0", "Exit",                 "",                                                    ""),
 ]
 
@@ -88,6 +89,7 @@ CATEGORY_COLORS = {
     "ATTACK":   C.RED,
     "INTEL":    C.MAGENTA,
     "EVASION":  C.TEAL,
+    "SHANNON":  C.BLUE,
 }
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -411,6 +413,109 @@ def run_evasion(target: str, output_dir: Path):
     success("Evasion testing complete")
 
 
+def run_info_theory(target: str, output_dir: Path):
+    """8 - Information Theory Scan."""
+    from core.information_theory import SirenInformationTheory
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(target)
+
+    print(f"""
+  {C.BLUE}{C.BOLD}SHANNON INFORMATION THEORY SCANNER{C.RST}
+  {C.DIM}The mathematics of Claude Shannon applied to vulnerability detection.{C.RST}
+  {C.DIM}Detects injection points WITHOUT sending malicious payloads.{C.RST}
+""")
+
+    print(f"""
+  {C.CYAN}Scan mode:{C.RST}
+    [1] Full scan    (all 6 engines — entropy, MI, KL, Fisher, channel, Kolmogorov)
+    [2] Quick scan   (mutual information + entropy only — fast)
+    [3] Stealth scan (Fisher-optimized minimum requests)
+""")
+    mode = input(f"  {C.OCEAN}shannon>{C.RST} ").strip()
+
+    # Discover parameters
+    params_input = input(f"  {C.CYAN}Parameters to test (comma-separated, or Enter for common):{C.RST} ").strip()
+    if params_input:
+        params = [p.strip() for p in params_input.split(",")]
+    else:
+        params = ["id", "q", "search", "page", "name", "user", "email",
+                  "file", "path", "url", "redirect", "callback", "template",
+                  "cmd", "exec", "query", "filter", "sort", "order", "lang"]
+        status(f"Testing {len(params)} common parameters...")
+
+    engine = SirenInformationTheory()
+
+    try:
+        if mode == "2":
+            status("Running quick scan (MI + entropy)...")
+            report = engine.quick_scan(target_url=target, params=params)
+        elif mode == "3":
+            status("Running stealth scan (Fisher-optimized)...")
+            report = engine.stealth_scan(target_url=target, params=params)
+        else:
+            status("Running full information theory scan...")
+            report = engine.full_scan(target_url=target, params=params)
+
+        # Display results
+        print()
+        line("═")
+        print(f"  {C.BOLD}INFORMATION THEORY RESULTS{C.RST}")
+        line("═")
+
+        if report.findings:
+            for f in report.findings:
+                sev_color = C.RED if f.confidence > 0.8 else C.YELLOW if f.confidence > 0.5 else C.DIM
+                print(f"  {sev_color}[{f.confidence:.0%}]{C.RST} {f.finding_type}: {f.description}")
+                if hasattr(f, 'param') and f.param:
+                    print(f"       {C.DIM}param={f.param} | evidence: {f.evidence[:80] if f.evidence else 'N/A'}{C.RST}")
+            print()
+            success(f"Findings: {len(report.findings)}")
+        else:
+            status("No information-theoretic anomalies detected.")
+
+        if report.mi_results:
+            print()
+            status(f"Mutual Information results ({len(report.mi_results)} params):")
+            for mi in sorted(report.mi_results, key=lambda x: x.mi_value, reverse=True)[:10]:
+                bar_len = int(mi.mi_value * 20)
+                bar = "█" * bar_len + "░" * (20 - bar_len)
+                color = C.RED if mi.mi_value > 0.7 else C.YELLOW if mi.mi_value > 0.3 else C.DIM
+                vuln = f" → {mi.likely_vuln_type}" if mi.likely_vuln_type else ""
+                print(f"    {color}{mi.param:<15} [{bar}] {mi.mi_value:.3f}{vuln}{C.RST}")
+
+        if report.channel_capacities:
+            print()
+            status("Channel capacity (exfiltration risk):")
+            for ch in sorted(report.channel_capacities, key=lambda x: x.bits_per_request, reverse=True)[:5]:
+                risk_color = C.RED if ch.bits_per_request > 4 else C.YELLOW if ch.bits_per_request > 1 else C.DIM
+                print(f"    {risk_color}{ch.param:<15} {ch.bits_per_request:.2f} bits/req{C.RST}")
+
+        print()
+        success(f"Total requests made: {report.total_requests_made}")
+        success(f"Scan duration: {report.scan_duration:.2f}s")
+
+        path = save_result(output_dir, "info_theory", report.to_dict())
+        status(f"Saved: {path}")
+
+    except Exception as e:
+        error(f"Information theory scan failed: {e}")
+
+
+def run_info_theory_auto(target: str, output_dir: Path):
+    """Info Theory without interactive prompts (for ALL mode)."""
+    from core.information_theory import SirenInformationTheory
+    status("Running quick information theory scan...")
+    params = ["id", "q", "search", "page", "name", "user", "file", "path", "url", "redirect"]
+    engine = SirenInformationTheory()
+    report = engine.quick_scan(target_url=target, params=params)
+    if report.findings:
+        for f in report.findings[:5]:
+            success(f"[{f.confidence:.0%}] {f.finding_type}: {f.description}")
+    save_result(output_dir, "info_theory", report.to_dict())
+    success(f"Info theory complete ({len(report.findings)} findings)")
+
+
 def run_all(target: str, output_dir: Path):
     """A - Run ALL modules sequentially."""
     ALL_SEQUENCE = [
@@ -420,6 +525,7 @@ def run_all(target: str, output_dir: Path):
         ("5", "Attack Suite",       run_attack_suite),
         ("6", "Intel + Defense",    run_intel_defense),
         ("7", "Evasion Test",       run_evasion),
+        ("8", "Info Theory",        run_info_theory_auto),
     ]
 
     print(f"""
@@ -465,6 +571,7 @@ DISPATCH = {
     "5": run_attack_suite,
     "6": run_intel_defense,
     "7": run_evasion,
+    "8": run_info_theory,
 }
 
 

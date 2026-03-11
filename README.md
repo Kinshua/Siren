@@ -96,6 +96,22 @@ Unrestricted upload (Low) ─┘
 
 Candidates are scored by feasibility, stealth, and impact. The output is a ranked list of actionable chains.
 
+### Information Theory Scanner
+
+Named after Claude Shannon, SIREN applies his mathematics directly to vulnerability detection. This module implements six engines that no other security tool in the world provides:
+
+**Mutual Information scanning** measures statistical dependency between inputs and outputs using only benign probes. If changing a parameter from `test1` to `test2` causes structured response changes (high mutual information), the parameter likely flows into a query, template, or command — revealing injection points without triggering any WAF or IDS, because no malicious payload is ever sent.
+
+**KL Divergence detection** builds a probability distribution of normal responses, then measures how much a probe response diverges from baseline. This is more precise than string comparison and works on dynamic pages where content changes between requests.
+
+**Shannon Entropy analysis** profiles the entropy of responses and payloads. Payloads with entropy profiles that differ significantly from normal traffic are easily detected by WAFs. SIREN optimizes payload entropy to match the target's baseline traffic profile.
+
+**Fisher Information probing** applies optimal experimental design to choose the minimum number of requests needed to confirm a vulnerability, based on how much information each probe provides. Fewer requests means less detection.
+
+**Channel Capacity estimation** uses Shannon's channel capacity theorem to calculate the maximum data exfiltration rate through each endpoint, measured in bits per request.
+
+**Kolmogorov Complexity estimation** uses compression analysis to detect when different inputs trigger different server code paths, and to identify obfuscated or encrypted content in responses.
+
 ---
 
 ## Architecture
@@ -182,6 +198,9 @@ INTEL
 EVASION
   [7] Evasion Test         WAF bypass, IDS evasion, payload obfuscation
 
+SHANNON
+  [8] Info Theory Scan     Shannon entropy, mutual information, KL divergence
+
   [0] Exit
 ```
 
@@ -226,6 +245,7 @@ siren-output/
 | Authentication | Brute force, password spray, MFA bypass, OAuth |
 | Evasion | WAF bypass (640+ rules), IDS evasion, obfuscation |
 | OSINT | Google dorking, identity resolution, graph correlation |
+| Information theory | Shannon entropy, mutual information, KL divergence, Fisher info, channel capacity, Kolmogorov complexity |
 | Compliance | PCI-DSS, HIPAA, SOC 2, ISO 27001, NIST, CIS |
 
 MITRE ATT&CK: 14 of 14 tactics covered.
